@@ -1,14 +1,13 @@
 import numpy as np
 
-class MultiClassSVM:
+class SVM:
 
-    def __init__(self, learning_rate=0.01, lambda_param=0.01, n_iters=1000):
+    def __init__(self, learning_rate=0.01, lambda_param=0.01):
         self.learning_rate = learning_rate
         self.C = lambda_param #C is the error term, also represented by lamda
-        self.epochs = n_iters
         self.classifiers = []
 
-    def fit(self, X, y):
+    def fit(self, X, y, epochs=1000):
         #Find how many unique possible classes (identities) there are
         classes = np.unique(y)
         num_classes = len(classes)
@@ -20,11 +19,12 @@ class MultiClassSVM:
             w = np.zeros(num_features)
             b = 0
 
-            # Convert to binary classification problem
+            #Create binary classification problem
+            #Set label to 1 if it matches current class, -1 if not
             binary_labels = np.where(y == classes[i], 1, -1)
 
             #Perform Gradient Descent
-            for _ in range(self.epochs):
+            for _ in range(epochs):
                 #Find Hinge loss
                 score = np.dot(X, w) - b #decision function
                 loss = 1 - binary_labels * score
@@ -32,7 +32,6 @@ class MultiClassSVM:
                 #Calculate gradient
                 gradient_w = np.zeros(num_features)
                 gradient_b = 0
-
                 for j in range(num_samples):
                     if loss[j] > 0:
                         gradient_w = gradient_w - ( binary_labels[j] * X[j] )
@@ -45,7 +44,7 @@ class MultiClassSVM:
                 w = w - self.learning_rate * gradient_w
                 b = b - self.learning_rate * gradient_b
 
-            #After optimizing, save the weights and bias for this class's classifier
+            #After optimizing, save the weights and bias for this class
             self.classifiers.append((w, b))
 
     def predict(self, X):
@@ -64,6 +63,7 @@ class MultiClassSVM:
 
 
 #Gather Dataset
+
 from sklearn.datasets import fetch_lfw_people
 #Get identities that have at least 100 images in the dataset (there are 5 identities)
 #The original images are 250 x 250 pixels, but the default slice and resize arguments reduce them to 62 x 47
@@ -122,24 +122,32 @@ print('Total number of data samples: ', len(X))
 print("n_features: %d" % n_features)
 print("classes (identities): ", faces.target_names)
 
-
 from sklearn.model_selection import train_test_split
 #Split into test and training sets
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
 
 
 
-svm = MultiClassSVM()
+svm = SVM()
 #Train
 svm.fit(X_train, y_train)
 #Predict
 predictions = svm.predict(X_test)
 
+
+#Calculate accuracy and the confusion matrix
+print("Test identities:\n", y_test)
+print("Predicted identities:\n", predictions)
+print('')
 import sklearn.metrics as metrics
 print("Accuracy: ", metrics.accuracy_score(predictions, y_test))
-confusionMatrix = metrics.confusion_matrix(y_test, predictions)
-print("Confusion Matrix: ", confusionMatrix)
 
+confusionMatrix = metrics.confusion_matrix(y_test, predictions)
+print("Confusion Matrix: \n", confusionMatrix)
+import matplotlib.pyplot as plt
+cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix = confusionMatrix)
+cm_display.plot()
+plt.show()
 
 
 
@@ -177,7 +185,6 @@ def displayImage(file_path, predicted_identity):
     
 root = tk.Tk()
 root.title("Face Identifier")
-text_widget = tk.Text(root, wrap=tk.WORD, height=45, width=55)
 open_button = tk.Button(root, text="Select Image", command=openImage)
 open_button.pack(padx=40, pady=20)
 image_label = tk.Label(root)
